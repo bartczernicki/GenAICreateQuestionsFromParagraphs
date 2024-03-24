@@ -17,7 +17,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="DbPediaQuestions\dbPediasSampleQuestions.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="dbpedias.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="SemanticKernelPlugins\QuestionPlugin\AnswerQuestion\config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="SemanticKernelPlugins\QuestionPlugin\AnswerQuestion\skprompt.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="SemanticKernelPlugins\QuestionPlugin\CreateQuestion\config.json">

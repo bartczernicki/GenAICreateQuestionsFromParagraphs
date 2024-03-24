@@ -10,6 +10,8 @@ namespace GenAICreateQuestionsFromParagraphs
 {
     internal class Program
     {
+        private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
+
         static async Task Main(string[] args)
         {
             Console.Title = "GenAI - Create & Answer Questions From DbPedia";
@@ -59,11 +61,6 @@ namespace GenAICreateQuestionsFromParagraphs
             Console.WriteLine("You selected: {0}", selectedProcessingChoice);
 
 
-            Console.WriteLine("Load DbPedias");
-            var dbPedias = LoadDbPedias("dbpedias.json");
-            
-            var dbPediaSampleQuestions = new List<DbPediaSampleQuestion>(100);
-
             // Set up SK
             ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
             IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
@@ -82,40 +79,100 @@ namespace GenAICreateQuestionsFromParagraphs
             );
             var semanticKernel = semanticKernelBuilder.Build();
 
-            var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
-            var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
-
-            foreach (var dbPedia in dbPedias)
+            if (selectedProcessingChoice == ProcessingOptions.CreateQuestions)
             {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Generating Question for {dbPedia.Title}");
+                Console.WriteLine("Load DbPedias");
+                var dbPedias = LoadDbPedias("dbpedias.json");
+                var dbPediaSampleQuestions = new List<DbPediaSampleQuestion>(100);
 
-                var kernelFunction = createQuestionPlugin["CreateQuestion"];
-                var promptsDictionary = new Dictionary<string, object>
+                var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
+                var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
+
+                foreach (var dbPedia in dbPedias)
                 {
-                    { "TITLE", dbPedia.Title },
-                    { "PARAGRAPH", dbPedia.Text }
-                };
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"Generating Question for {dbPedia.Title}");
 
-                var kernelArguments = new KernelArguments(promptsDictionary!);
+                    var kernelFunction = createQuestionPlugin["CreateQuestion"];
+                    var promptsDictionary = new Dictionary<string, object>
+                    {
+                        { "TITLE", dbPedia.Title },
+                        { "PARAGRAPH", dbPedia.Text }
+                    };
 
-                var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
+                    var kernelArguments = new KernelArguments(promptsDictionary!);
 
-                var sampleQuestion = new DbPediaSampleQuestion
-                {
-                    Id = dbPedia.Id,
-                    Title = dbPedia.Title,
-                    Text = dbPedia.Text,
-                    SampleQuestion = generatedQuestion.GetValue<string>() ?? string.Empty
-                };
+                    var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
 
-                dbPediaSampleQuestions.Add(sampleQuestion);
-                Task.Delay(250).Wait();
+                    var sampleQuestion = new DbPediaSampleQuestion
+                    {
+                        Id = dbPedia.Id,
+                        Title = dbPedia.Title,
+                        Text = dbPedia.Text,
+                        SampleQuestion = generatedQuestion.GetValue<string>() ?? string.Empty
+                    };
+
+                    dbPediaSampleQuestions.Add(sampleQuestion);
+                    Task.Delay(250).Wait();
+                }
+
+                Console.WriteLine("Save DbPedias with Sample Questions");
+                var dbPediaSampleQuestionsJson = JsonSerializer.Serialize(dbPediaSampleQuestions);
+                File.WriteAllText(("dbPediasSampleQuestions.json"), dbPediaSampleQuestionsJson);
             }
+            else if(selectedProcessingChoice == ProcessingOptions.AnswerQuestions)
+            {
+                var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
 
-            Console.WriteLine("Save DbPedias with Sample Questions");
-            var dbPediaSampleQuestionsJson = JsonSerializer.Serialize(dbPediaSampleQuestions);
-            File.WriteAllText(("dbPediasSampleQuestions.json"), dbPediaSampleQuestionsJson);
+                var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
+                var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
+
+                Parallel.ForEach(dbPediaQuestions, dbPediaQuestion =>
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
+
+                    var kernelFunction = createQuestionPlugin["AnswerQuestion"];
+                    var promptsDictionary = new Dictionary<string, object>
+                    {
+                        { "TITLE", dbPediaQuestion.Title },
+                        { "PARAGRAPH", dbPediaQuestion.Text },
+                        { "QUESTION", dbPediaQuestion.SampleQuestion }
+                    };
+
+                    var kernelArguments = new KernelArguments(promptsDictionary!);
+
+                    var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
+                    var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
+                    Console.WriteLine($"ANSWER: {generatedQuestionString}");
+                    Console.WriteLine();
+
+                    // Task.Delay(250).Wait();
+                });
+
+                //foreach (var dbPediaQuestion in dbPediaQuestions)
+                //{
+                //    Console.ForegroundColor = ConsoleColor.Cyan;
+                //    Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
+
+                //    var kernelFunction = createQuestionPlugin["AnswerQuestion"];
+                //    var promptsDictionary = new Dictionary<string, object>
+                //    {
+                //        { "TITLE", dbPediaQuestion.Title },
+                //        { "PARAGRAPH", dbPediaQuestion.Text },
+                //        { "QUESTION", dbPediaQuestion.SampleQuestion }
+                //    };
+
+                //    var kernelArguments = new KernelArguments(promptsDictionary!);
+
+                //    var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
+                //    var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
+                //    Console.WriteLine($"ANSWER: {generatedQuestionString}");
+                //    Console.WriteLine();
+
+                //    // Task.Delay(250).Wait();
+                //}
+            }
         }
 
         static List<DbPedia> LoadDbPedias(string filePath)
@@ -124,6 +181,16 @@ namespace GenAICreateQuestionsFromParagraphs
             {
                 string json = r.ReadToEnd();
                 var dbpedias = JsonSerializer.Deserialize<List<DbPedia>>(json);
+                return dbpedias;
+            }
+        }
+
+        static List<DbPediaSampleQuestion> LoadDbPediaQuestions(string filePath)
+        {
+            using (StreamReader r = new StreamReader(filePath))
+            {
+                string json = r.ReadToEnd();
+                var dbpedias = JsonSerializer.Deserialize<List<DbPediaSampleQuestion>>(json);
                 return dbpedias;
             }
         }

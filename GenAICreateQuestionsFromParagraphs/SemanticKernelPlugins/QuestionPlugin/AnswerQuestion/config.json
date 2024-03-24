@@ -21,11 +21,6 @@
       "name": "PARAGRAPH",
       "description": "Paragraph from a DbPedia article.",
       "required": true
-    },
-    {
-      "name": "QUESTION",
-      "description": "Question to be answered by GenAI model.",
-      "required": true
     }
   ]
 }

@@ -1,8 +1,11 @@
 You are provided a Tile and a Paragraph of from a DbPedia article.
-Create a single question that can be answered from the Title and Paragraph combination below: 
+Answer the Question from the Title and Paragraph below: 
 ---Begin Title---
 {{$TITLE}}
 ---End Title---
 ---Begin Paragraph---
 {{$PARAGRAPH}}
 ---End Paragraph---
+---Begin Question---
+{{$QUESTION}}
+---End Question---
