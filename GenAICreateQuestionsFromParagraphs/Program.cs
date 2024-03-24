@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Humanizer.Configuration;
+using Microsoft.Extensions.Hosting;
+using System.Runtime.CompilerServices;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -60,26 +62,50 @@ namespace GenAICreateQuestionsFromParagraphs
             }
             Console.WriteLine("You selected: {0}", selectedProcessingChoice);
 
+            var builder = new HostBuilder();
+            builder
+                .ConfigureServices((hostContext, services) =>
+                {
+                    // Add AddHttpClient we register the IHttpClientFactory
+                    services.AddHttpClient();
+
+                    // Retrieve Polly retry policy and apply it to all the services making web requests
+                    var retryPolicy = Policies.HttpPolicies.GetRetryPolicy();
+
+                    // Apply the Polly policy to both the OpenAI and the Project Gutenberg services
+                    services.AddHttpClient("DefaultSemanticKernelService").AddPolicyHandler(retryPolicy);
+                });
+            var host = builder.Build();
 
             // Set up SK
             ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
             IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
-            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
-            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
-            var modelDeployment = "gpt-4-0125-preview";
+
+            // PAYGO Azure OpenAI
+            //var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
+            //var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
+            //var modelDeployment = "gpt-4-preview-1106";
+
+            // PTU Azure OpenAI
+            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKeyPTU"];
+            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["EndpointPTU"];
+            var modelDeployment = "gpt-4-1106-ptu";
 
             var semanticKernelBuilder = Kernel.CreateBuilder();
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure.AddConsole());
 
+            var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
+
             semanticKernelBuilder.AddAzureOpenAIChatCompletion(
                 deploymentName: modelDeployment,
                 endpoint: azureOpenAIEndpoint!,
-                apiKey: azureOpenAIAPIKey!
+                apiKey: azureOpenAIAPIKey!,
+                httpClient: (selectedProcessingChoice == (ProcessingOptions.AnswerQuestionsAtScale)) ? httpClientForSemanticKernel : null
             );
             var semanticKernel = semanticKernelBuilder.Build();
 
-            if (selectedProcessingChoice == ProcessingOptions.CreateQuestions)
+            if (selectedProcessingChoice == (ProcessingOptions.CreateQuestions))
             {
                 Console.WriteLine("Load DbPedias");
                 var dbPedias = LoadDbPedias("dbpedias.json");
@@ -113,20 +139,23 @@ namespace GenAICreateQuestionsFromParagraphs
                     };
 
                     dbPediaSampleQuestions.Add(sampleQuestion);
-                    Task.Delay(250).Wait();
                 }
 
                 Console.WriteLine("Save DbPedias with Sample Questions");
                 var dbPediaSampleQuestionsJson = JsonSerializer.Serialize(dbPediaSampleQuestions);
                 File.WriteAllText(("dbPediasSampleQuestions.json"), dbPediaSampleQuestionsJson);
             }
-            else if(selectedProcessingChoice == ProcessingOptions.AnswerQuestions)
+            else if(
+                (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
                 var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
+                dbPediaQuestions = dbPediaQuestions.Take(100).ToList();  
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
                 var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
 
+                // Do this in parallel to saturate the Azure OpenAI Endpoint
+                object sync = new object();
                 Parallel.ForEach(dbPediaQuestions, dbPediaQuestion =>
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -143,35 +172,17 @@ namespace GenAICreateQuestionsFromParagraphs
                     var kernelArguments = new KernelArguments(promptsDictionary!);
 
                     var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
+                    lock (sync)
+                    {
+                        var dateTimeOffSet = (DateTimeOffset) generatedQuestion?.Metadata["Created"];
+                        // retrieve the Semantic Kernel function duration
+                        var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalMilliseconds;
+                    };
+
                     var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
                     Console.WriteLine($"ANSWER: {generatedQuestionString}");
                     Console.WriteLine();
-
-                    // Task.Delay(250).Wait();
                 });
-
-                //foreach (var dbPediaQuestion in dbPediaQuestions)
-                //{
-                //    Console.ForegroundColor = ConsoleColor.Cyan;
-                //    Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
-
-                //    var kernelFunction = createQuestionPlugin["AnswerQuestion"];
-                //    var promptsDictionary = new Dictionary<string, object>
-                //    {
-                //        { "TITLE", dbPediaQuestion.Title },
-                //        { "PARAGRAPH", dbPediaQuestion.Text },
-                //        { "QUESTION", dbPediaQuestion.SampleQuestion }
-                //    };
-
-                //    var kernelArguments = new KernelArguments(promptsDictionary!);
-
-                //    var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
-                //    var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
-                //    Console.WriteLine($"ANSWER: {generatedQuestionString}");
-                //    Console.WriteLine();
-
-                //    // Task.Delay(250).Wait();
-                //}
             }
         }
 
