@@ -12,6 +12,27 @@ namespace GenAICreateQuestionsFromParagraphs
     {
         static async Task Main(string[] args)
         {
+            Console.Title = "GenAI - Create & Answer Questions From DbPedia";
+
+            var asciiArt = 
+                """
+                ,-----.                    ,--.             ,---.          ,---.                                         
+                '  .--.,--.--.,---. ,--,--,-'  '-.,---.     |  o ,-.       /  O  \,--,--, ,---.,--.   ,--.,---.,--.--.    
+                |  |   |  .--| .-. ' ,-.  '-.  .-| .-. :    .'     /_     |  .-.  |      (  .-'|  |.'.|  | .-. |  .--'    
+                '  '--'|  |  \   --\ '-'  | |  | \   --.    |  o  .__)    |  | |  |  ||  .-'  `|   .'.   \   --|  |       
+                ,-----.--'   `----'`--`--' `-,--.`,--.'     `---'        `--' `--`--''--`----''--'   '--'`----`--'       
+                '  .-.  ' ,--.,--.,---. ,---,-'  '-`--',---.,--,--, ,---.                                                 
+                |  | |  | |  ||  | .-. (  .-'-.  .-,--| .-. |      (  .-'                                                 
+                '  '-'  '-'  ''  \   --.-'  `)|  | |  ' '-' |  ||  .-'  `)                                                
+                `-----'--'`----' `----`----' `--' `--'`---'`--''--`----'   
+                """;
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write(asciiArt);
+
+            //ProcessingOptions selectedProcessingChoice = (ProcessingOptions)0;
+            //bool validInput = false;
+
             Console.WriteLine("Load DbPedias");
             var dbPedias = LoadDbPedias("dbpedias.json");
             
