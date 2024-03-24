@@ -1,0 +1,8 @@
+You are provided a Tile and a Paragraph of from a DbPedia article.
+Create a question that can be answered from the Paragraph below: 
+---Begin Title---
+{{$TITLE}}
+---End Title---
+---Begin Paragraph---
+{{$PARAGRAPH}}
+---End Paragraph---

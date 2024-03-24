@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "description": "Search & Answer for Project Gutenberg",
+  "type": "completion",
+  "execution_settings": {
+    "default": {
+      "max_tokens": 700,
+      "temperature": 0.5,
+      "top_p": 0.7,
+      "presence_penalty": 0.5,
+      "frequency_penalty": 0.0
+    }
+  },
+  "input_variables": [
+    {
+      "name": "TITLE",
+      "description": "Title of a DbPedia article.",
+      "required": true
+    },
+    {
+      "name": "PARAGRAPH",
+      "description": "Paragraph from a DbPedia article.",
+      "required": true
+    }
+  ]
+}
