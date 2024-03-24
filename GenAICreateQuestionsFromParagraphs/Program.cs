@@ -4,6 +4,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Humanizer.Configuration;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -17,18 +18,45 @@ namespace GenAICreateQuestionsFromParagraphs
             var dbPediaSampleQuestions = new List<DbPediaSampleQuestion>(100);
 
             // Set up SK
+            ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+            IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
+            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
+            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
+            var modelDeployment = "gpt-4-0125-preview";
+
             var semanticKernelBuilder = Kernel.CreateBuilder();
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure.AddConsole());
 
+            semanticKernelBuilder.AddAzureOpenAIChatCompletion(
+                deploymentName: modelDeployment,
+                endpoint: azureOpenAIEndpoint!,
+                apiKey: azureOpenAIAPIKey!
+            );
+            var semanticKernel = semanticKernelBuilder.Build();
+
+            var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
+            var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
+
             foreach (var dbPedia in dbPedias)
             {
+                var kernelFunction = createQuestionPlugin["CreateQuestion"];
+                var promptsDictionary = new Dictionary<string, object>
+                {
+                    { "TITLE", dbPedia.Title },
+                    { "PARAGRAPH", dbPedia.Text }
+                };
+
+                var kernelArguments = new KernelArguments(promptsDictionary);
+
+                var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
+
                 var sampleQuestion = new DbPediaSampleQuestion
                 {
                     Id = dbPedia.Id,
                     Title = dbPedia.Title,
                     Text = dbPedia.Text,
-                    SampleQuestion = "What is " + dbPedia.Title + "?"
+                    SampleQuestion = generatedQuestion.GetValue<string>() ?? string.Empty
                 };
 
                 dbPediaSampleQuestions.Add(sampleQuestion);
