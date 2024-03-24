@@ -40,6 +40,9 @@ namespace GenAICreateQuestionsFromParagraphs
 
             foreach (var dbPedia in dbPedias)
             {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"Generating Question for {dbPedia.Title}");
+
                 var kernelFunction = createQuestionPlugin["CreateQuestion"];
                 var promptsDictionary = new Dictionary<string, object>
                 {
@@ -47,7 +50,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     { "PARAGRAPH", dbPedia.Text }
                 };
 
-                var kernelArguments = new KernelArguments(promptsDictionary);
+                var kernelArguments = new KernelArguments(promptsDictionary!);
 
                 var generatedQuestion = await semanticKernel.InvokeAsync(kernelFunction, kernelArguments);
 
@@ -60,6 +63,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 };
 
                 dbPediaSampleQuestions.Add(sampleQuestion);
+                Task.Delay(250).Wait();
             }
 
             Console.WriteLine("Save DbPedias with Sample Questions");
