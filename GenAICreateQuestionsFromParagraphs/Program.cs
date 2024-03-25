@@ -15,6 +15,7 @@ namespace GenAICreateQuestionsFromParagraphs
     internal class Program
     {
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
+        private const int NUMBEROFQUESTIONSTOPROCESS = 100;
 
         static async Task Main(string[] args)
         {
@@ -114,7 +115,7 @@ namespace GenAICreateQuestionsFromParagraphs
             {
                 Console.WriteLine("Load DbPedias");
                 var dbPedias = LoadDbPedias("dbpedias.json");
-                var dbPediaSampleQuestions = new List<DbPediaSampleQuestion>(100);
+                var dbPediaSampleQuestions = new List<DbPediaSampleQuestion>(NUMBEROFQUESTIONSTOPROCESS);
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
                 var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
@@ -154,7 +155,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
                 var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
-                dbPediaQuestions = dbPediaQuestions.Take(250).ToList();
+                dbPediaQuestions = dbPediaQuestions.Take(NUMBEROFQUESTIONSTOPROCESS).ToList();
                 var durationResults = new List<double>(dbPediaQuestions.Count);
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
