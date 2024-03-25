@@ -23,13 +23,18 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
             //            Console.WriteLine($"**** Failed HttpRequest attempt. Waited for {calculatedWaitDuration} Retrying. {response.Result.StatusCode}, Request URI: {response.Result.RequestMessage.RequestUri}");
             //        }
             //);
+            // https://github.com/App-vNext/Polly/issues/414
             .WaitAndRetryAsync(
                 20,
                 sleepDurationProvider: (retryCount, response, context) => 
                     {
                         return response.Result.Headers.RetryAfter.Delta.Value * 1.1;
                     },
-                onRetryAsync: (response, timespan, retryCount, context) => Task.CompletedTask);
+                onRetryAsync: (response, timespan, retryCount, context) =>
+                    {
+                        return Task.CompletedTask;
+                    }
+                );
 
             return retryPolicy;
         }
