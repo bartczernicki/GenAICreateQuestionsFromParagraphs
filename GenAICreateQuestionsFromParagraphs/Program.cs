@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Humanizer.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -94,7 +95,6 @@ namespace GenAICreateQuestionsFromParagraphs
             var semanticKernelBuilder = Kernel.CreateBuilder();
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure.AddConsole());
-
             var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
 
             semanticKernelBuilder.AddAzureOpenAIChatCompletion(
@@ -149,13 +149,15 @@ namespace GenAICreateQuestionsFromParagraphs
                 (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
                 var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
-                dbPediaQuestions = dbPediaQuestions.Take(100).ToList();  
+                dbPediaQuestions = dbPediaQuestions.Take(100).ToList();
+                var durationResults = new List<double>(dbPediaQuestions.Count);
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
                 var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
 
                 // Do this in parallel to saturate the Azure OpenAI Endpoint
                 object sync = new object();
+                var currentTime = DateTime.UtcNow;
                 Parallel.ForEach(dbPediaQuestions, dbPediaQuestion =>
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -172,17 +174,37 @@ namespace GenAICreateQuestionsFromParagraphs
                     var kernelArguments = new KernelArguments(promptsDictionary!);
 
                     var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
+
                     lock (sync)
                     {
                         var dateTimeOffSet = (DateTimeOffset) generatedQuestion?.Metadata["Created"];
                         // retrieve the Semantic Kernel function duration
-                        var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalMilliseconds;
+                        var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
+                        durationResults.Add(diff);
+                        Console.WriteLine($"Duration: {diff} seconds");
                     };
 
                     var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
                     Console.WriteLine($"ANSWER: {generatedQuestionString}");
                     Console.WriteLine();
                 });
+                var currentTimeAfterRun = DateTime.UtcNow;
+                var totalDurationWithRetries = (currentTimeAfterRun - currentTime).TotalSeconds;
+
+                // Write out the duration results into a string
+                var sb = new StringBuilder();
+                foreach (var duration in durationResults)
+                {
+                    sb.AppendLine(duration.ToString());
+                }
+                File.WriteAllText("sampleDurationResults.txt", sb.ToString());
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"Finished Processing {dbPediaQuestions.Count} questions.");
+                Console.WriteLine($"Total   Processing Time - Sum of 100 requests  (sec): {durationResults.Sum()}");
+                Console.WriteLine($"Average Processing Time - Avg of 100 requests  (sec): {durationResults.Average()}");
+                Console.WriteLine($"Total   Processing Time - With logic & retries (sec): {totalDurationWithRetries}");
+                Console.WriteLine();
             }
         }
 
