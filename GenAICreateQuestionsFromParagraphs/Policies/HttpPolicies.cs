@@ -25,7 +25,7 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
             //);
             .WaitAndRetryAsync(
                 20,
-                (_, result, _) => result.Result.Headers.RetryAfter.Delta.Value,
+                (_, result, _) => result.Result.Headers.RetryAfter.Delta.Value*1.1,
                 (_, __, ___, ____) => Task.CompletedTask);
 
             return retryPolicy;
