@@ -8,6 +8,7 @@ using Humanizer.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Azure.AI.OpenAI;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -74,7 +75,11 @@ namespace GenAICreateQuestionsFromParagraphs
                     var retryPolicy = Policies.HttpPolicies.GetRetryPolicy();
 
                     // Apply the Polly policy to both the OpenAI and the Project Gutenberg services
-                    services.AddHttpClient("DefaultSemanticKernelService").AddPolicyHandler(retryPolicy);
+                    services.AddHttpClient("DefaultSemanticKernelService", configureClient =>
+                    {
+                        configureClient.Timeout = TimeSpan.FromSeconds(200);
+                    }
+                    ).AddPolicyHandler(retryPolicy);
                 });
             var host = builder.Build();
 
@@ -83,14 +88,14 @@ namespace GenAICreateQuestionsFromParagraphs
             IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
 
             // PAYGO Azure OpenAI
-            //var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
-            //var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
-            //var modelDeployment = "gpt-4-preview-1106";
+            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
+            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
+            var modelDeployment = "gpt-4-preview-1106";
 
             // PTU Azure OpenAI
-            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKeyPTU"];
-            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["EndpointPTU"];
-            var modelDeployment = "gpt-4-1106-ptu";
+            //var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKeyPTU"];
+            //var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["EndpointPTU"];
+            //var modelDeployment = "gpt-4-1106-ptu";
 
             var semanticKernelBuilder = Kernel.CreateBuilder();
             // Logging will be written to the debug output window
@@ -149,7 +154,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
                 var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
-                dbPediaQuestions = dbPediaQuestions.Take(100).ToList();
+                dbPediaQuestions = dbPediaQuestions.Take(250).ToList();
                 var durationResults = new List<double>(dbPediaQuestions.Count);
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
@@ -164,6 +169,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
 
                     var kernelFunction = createQuestionPlugin["AnswerQuestion"];
+
                     var promptsDictionary = new Dictionary<string, object>
                     {
                         { "TITLE", dbPediaQuestion.Title },
@@ -181,7 +187,6 @@ namespace GenAICreateQuestionsFromParagraphs
                         // retrieve the Semantic Kernel function duration
                         var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
                         durationResults.Add(diff);
-                        Console.WriteLine($"Duration: {diff} seconds");
                     };
 
                     var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;

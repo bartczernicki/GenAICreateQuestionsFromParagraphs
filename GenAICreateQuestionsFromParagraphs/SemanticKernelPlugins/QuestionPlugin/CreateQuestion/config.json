@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Search & Answer for Project Gutenberg",
+  "description": "Create Question Template",
   "type": "completion",
   "execution_settings": {
     "default": {
