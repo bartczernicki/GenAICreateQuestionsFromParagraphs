@@ -15,7 +15,7 @@ namespace GenAICreateQuestionsFromParagraphs
     internal class Program
     {
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
-        private const int NUMBEROFQUESTIONSTOPROCESS = 500;
+        private const int NUMBEROFQUESTIONSTOPROCESS = 100;
 
         static async Task Main(string[] args)
         {
