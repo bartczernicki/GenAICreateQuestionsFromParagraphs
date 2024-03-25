@@ -88,15 +88,11 @@ namespace GenAICreateQuestionsFromParagraphs
             ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
             IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
 
-            // PAYGO Azure OpenAI
+            // Retrieve the keys
             var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
             var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
-            var modelDeployment = "gpt-4-preview-1106";
-
-            // PTU Azure OpenAI
-            //var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKeyPTU"];
-            //var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["EndpointPTU"];
-            //var modelDeployment = "gpt-4-1106-ptu";
+            var modelDeploymentName = configuration.GetSection("AzureOpenAI")["ModelDeploymentName"];
+            var azureOpenAIType = configuration.GetSection("AzureOpenAI")["AzureOpenAIType"];
 
             var semanticKernelBuilder = Kernel.CreateBuilder();
             // Logging will be written to the debug output window
@@ -104,7 +100,7 @@ namespace GenAICreateQuestionsFromParagraphs
             var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
 
             semanticKernelBuilder.AddAzureOpenAIChatCompletion(
-                deploymentName: modelDeployment,
+                deploymentName: modelDeploymentName!,
                 endpoint: azureOpenAIEndpoint!,
                 apiKey: azureOpenAIAPIKey!,
                 httpClient: (selectedProcessingChoice == (ProcessingOptions.AnswerQuestionsAtScale)) ? httpClientForSemanticKernel : null
@@ -203,13 +199,13 @@ namespace GenAICreateQuestionsFromParagraphs
                 {
                     sb.AppendLine(duration.ToString());
                 }
-                File.WriteAllText("sampleDurationResults.txt", sb.ToString());
+                File.WriteAllText($"sampleDurationResults-{NUMBEROFQUESTIONSTOPROCESS}-{azureOpenAIType}-{modelDeploymentName}.txt", sb.ToString());
 
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Finished Processing {dbPediaQuestions.Count} questions.");
-                Console.WriteLine($"Total   Processing Time - Sum of 100 requests  (sec): {durationResults.Sum()}");
-                Console.WriteLine($"Average Processing Time - Avg of 100 requests  (sec): {durationResults.Average()}");
-                Console.WriteLine($"Total   Processing Time - With logic & retries (sec): {totalDurationWithRetries}");
+                Console.WriteLine($"Finished Processing {NUMBEROFQUESTIONSTOPROCESS} questions using {azureOpenAIType}:{modelDeploymentName}");
+                Console.WriteLine($"Total   Processing Time - Sum of {NUMBEROFQUESTIONSTOPROCESS} requests  (sec): {durationResults.Sum()}");
+                Console.WriteLine($"Average Processing Time - Avg of {NUMBEROFQUESTIONSTOPROCESS} requests  (sec): {durationResults.Average()}");
+                Console.WriteLine($"Total   Processing Time - Time to process in parallel (logic & retries) (sec): {totalDurationWithRetries}");
                 Console.WriteLine();
             }
         }
