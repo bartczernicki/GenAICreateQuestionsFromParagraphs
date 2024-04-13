@@ -1,14 +1,11 @@
-﻿using System.Text.Json;
-using System;
-using Microsoft.SemanticKernel;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Humanizer.Configuration;
 using Microsoft.Extensions.Hosting;
-using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Serilog;
 using System.Text;
-using Azure.AI.OpenAI;
+using System.Text.Json;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -38,6 +35,15 @@ namespace GenAICreateQuestionsFromParagraphs
             Console.Write(asciiArt);
             ProcessingOptions selectedProcessingChoice = (ProcessingOptions)0;
             bool validInput = false;
+
+            var seriLogger = new LoggerConfiguration()
+                //.MinimumLevel.Debug()
+                .MinimumLevel.Verbose()
+                .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Verbose)
+                //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
+                //.WriteTo.Console()
+                .WriteTo.File("SeriLog.log")
+                .CreateLogger();
 
             // Iterate until the proper input is selected by the user
             while (!validInput)
@@ -82,6 +88,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     }
                     ).AddPolicyHandler(retryPolicy);
                 });
+            builder.UseSerilog();
             var host = builder.Build();
 
             // Set up SK
@@ -94,9 +101,16 @@ namespace GenAICreateQuestionsFromParagraphs
             var modelDeploymentName = configuration.GetSection("AzureOpenAI")["ModelDeploymentName"];
             var azureOpenAIType = configuration.GetSection("AzureOpenAI")["AzureOpenAIType"];
 
+            // Semantic Kernel Builder
             var semanticKernelBuilder = Kernel.CreateBuilder();
+
             // Logging will be written to the debug output window
-            semanticKernelBuilder.Services.AddLogging(configure => configure.AddConsole());
+            semanticKernelBuilder.Services.AddLogging(configure => configure
+                .SetMinimumLevel(LogLevel.Debug)
+                .AddSerilog(seriLogger)
+               );
+            
+            // Add custom HttpClient with Retry Policy (dynamically added based on selected processing)
             var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
 
             semanticKernelBuilder.AddAzureOpenAIChatCompletion(
@@ -106,6 +120,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 httpClient: (selectedProcessingChoice == (ProcessingOptions.AnswerQuestionsAtScale)) ? httpClientForSemanticKernel : null
             );
             var semanticKernel = semanticKernelBuilder.Build();
+
 
             if (selectedProcessingChoice == (ProcessingOptions.CreateQuestions))
             {
@@ -180,7 +195,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
                     lock (sync)
                     {
-                        var dateTimeOffSet = (DateTimeOffset) generatedQuestion?.Metadata["Created"];
+                        var dateTimeOffSet = (DateTimeOffset) generatedQuestion!.Metadata["Created"];
                         // retrieve the Semantic Kernel function duration
                         var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
                         durationResults.Add(diff);
@@ -216,7 +231,7 @@ namespace GenAICreateQuestionsFromParagraphs
             {
                 string json = r.ReadToEnd();
                 var dbpedias = JsonSerializer.Deserialize<List<DbPedia>>(json);
-                return dbpedias;
+                return dbpedias!;
             }
         }
 

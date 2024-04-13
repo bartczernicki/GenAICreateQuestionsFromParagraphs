@@ -28,7 +28,7 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
                 20,
                 sleepDurationProvider: (retryCount, response, context) => 
                     {
-                        return response.Result.Headers.RetryAfter.Delta.Value * 1.1;
+                        return response!.Result!.Headers!.RetryAfter!.Delta!.Value * 1.1;
                     },
                 onRetryAsync: (response, timespan, retryCount, context) =>
                     {
