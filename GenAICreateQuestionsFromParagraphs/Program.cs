@@ -39,8 +39,7 @@ namespace GenAICreateQuestionsFromParagraphs
             var seriLogger = new LoggerConfiguration()
                 //.MinimumLevel.Debug()
                 .MinimumLevel.Verbose()
-                .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Verbose)
-                //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
+                //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Verbose)
                 //.WriteTo.Console()
                 .WriteTo.File("SeriLog.log")
                 .CreateLogger();
@@ -76,7 +75,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Add AddHttpClient we register the IHttpClientFactory
-                    services.AddHttpClient();
+                    //services.AddHttpClient();
 
                     // Retrieve Polly retry policy and apply it to all the services making web requests
                     var retryPolicy = Policies.HttpPolicies.GetRetryPolicy();
@@ -86,9 +85,12 @@ namespace GenAICreateQuestionsFromParagraphs
                     {
                         configureClient.Timeout = TimeSpan.FromSeconds(200);
                     }
-                    ).AddPolicyHandler(retryPolicy);
+                    )
+                    .AddPolicyHandler(retryPolicy);
+
+                    // services.AddLogging(cfg => cfg.ClearProviders().AddSerilog());
                 });
-            builder.UseSerilog();
+            builder.ConfigureLogging(cfg => cfg.ClearProviders().AddSerilog(seriLogger));
             var host = builder.Build();
 
             // Set up SK
@@ -106,7 +108,6 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure
-                .SetMinimumLevel(LogLevel.Debug)
                 .AddSerilog(seriLogger)
                );
             

@@ -32,6 +32,7 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
                     },
                 onRetryAsync: (response, timespan, retryCount, context) =>
                     {
+                        Console.WriteLine($"Retrying: {retryCount}");
                         return Task.CompletedTask;
                     }
                 );
