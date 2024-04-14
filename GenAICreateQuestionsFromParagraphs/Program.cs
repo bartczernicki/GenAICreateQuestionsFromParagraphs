@@ -36,13 +36,20 @@ namespace GenAICreateQuestionsFromParagraphs
             ProcessingOptions selectedProcessingChoice = (ProcessingOptions)0;
             bool validInput = false;
 
-            var seriLogger = new LoggerConfiguration()
+            // Use Seri Log for logging and Sinks (files)
+            var seriLoggerSemanticKernel = new LoggerConfiguration()
                 //.MinimumLevel.Debug()
                 .MinimumLevel.Verbose()
                 //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Verbose)
                 //.WriteTo.Console()
-                .WriteTo.File("SeriLog.log")
+                .WriteTo.File("SeriLog-SemanticKernel.log")
                 .CreateLogger();
+
+            var seriLoggerSemanticKernelHttpClient = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .WriteTo.File("SeriLog-SemanticKernelHttpClient.log")
+                .CreateLogger();
+
 
             // Iterate until the proper input is selected by the user
             while (!validInput)
@@ -87,10 +94,8 @@ namespace GenAICreateQuestionsFromParagraphs
                     }
                     )
                     .AddPolicyHandler(retryPolicy);
-
-                    // services.AddLogging(cfg => cfg.ClearProviders().AddSerilog());
                 });
-            builder.ConfigureLogging(cfg => cfg.ClearProviders().AddSerilog(seriLogger));
+            builder.ConfigureLogging(cfg => cfg.ClearProviders().AddSerilog(seriLoggerSemanticKernelHttpClient));
             var host = builder.Build();
 
             // Set up SK
@@ -108,7 +113,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure
-                .AddSerilog(seriLogger)
+                .AddSerilog(seriLoggerSemanticKernel)
                );
             
             // Add custom HttpClient with Retry Policy (dynamically added based on selected processing)
