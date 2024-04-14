@@ -39,15 +39,15 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Use Seri Log for logging and Sinks (files)
             var seriLoggerSemanticKernel = new LoggerConfiguration()
-                //.MinimumLevel.Debug()
+                .Enrich.WithThreadId()
                 .MinimumLevel.Verbose()
-                //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Verbose)
-                //.WriteTo.Console()
                 .WriteTo.File("SeriLog-SemanticKernel.log")
                 .CreateLogger();
 
             var seriLoggerSemanticKernelHttpClient = new LoggerConfiguration()
+                .Enrich.WithThreadId()
                 .MinimumLevel.Verbose()
+                // Can be tuned: https://stackoverflow.com/questions/70609720/reducing-httpclient-log-verbosity
                 .WriteTo.File("SeriLog-SemanticKernelHttpClient.log")
                 .CreateLogger();
 
