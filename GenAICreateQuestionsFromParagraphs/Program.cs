@@ -114,6 +114,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Logging will be written to the debug output window
             semanticKernelBuilder.Services.AddLogging(configure => configure
+                .SetMinimumLevel(LogLevel.Trace)
                 .AddSerilog(seriLoggerSemanticKernel)
                );
             
@@ -172,7 +173,7 @@ namespace GenAICreateQuestionsFromParagraphs
             else if(
                 (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
-                // Load the DBPedia Questions from thedbPediasSampleQuestions.json file
+                // Load the DBPedia Questions from the dbPediasSampleQuestions.json file
                 var dbPediaSampleQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
                 dbPediaSampleQuestions = dbPediaSampleQuestions.Take(NUMBEROFQUESTIONSTOPROCESS).ToList();
                 // Populate a ConcurrentQueue (for later flexibility)
@@ -188,7 +189,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 Parallel.ForEach(dbPediaSampleQuestionsQueue, dbPediaQuestion =>
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine($"Generating ANSWER for ID: {dbPediaQuestion.Id} - {dbPediaQuestion.SampleQuestion}");
+                    ConsolePrintHelper.PrintMessage($"Generating ANSWER for ID: {dbPediaQuestion.Id} - {dbPediaQuestion.SampleQuestion}", "question");
 
                     var kernelFunction = createQuestionPlugin["AnswerQuestion"];
 
@@ -212,8 +213,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     };
 
                     var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
-                    Console.WriteLine($"ANSWER for ID: {dbPediaQuestion.Id} - {generatedQuestionString}");
-                    Console.WriteLine();
+                    ConsolePrintHelper.PrintMessage($"ANSWER for ID: {dbPediaQuestion.Id} - {generatedQuestionString}", "answer");
                 });
                 var currentTimeAfterRun = DateTime.UtcNow;
                 var totalDurationWithRetries = (currentTimeAfterRun - currentTime).TotalSeconds;
@@ -226,11 +226,12 @@ namespace GenAICreateQuestionsFromParagraphs
                 }
                 File.WriteAllText($"sampleDurationResults-{NUMBEROFQUESTIONSTOPROCESS}-{azureOpenAIType}-{modelDeploymentName}.txt", sb.ToString());
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"Finished Processing {NUMBEROFQUESTIONSTOPROCESS} questions using {azureOpenAIType}:{modelDeploymentName}");
                 Console.WriteLine($"Total   Processing Time - Sum of {NUMBEROFQUESTIONSTOPROCESS} requests  (sec): {durationResults.Sum()}");
                 Console.WriteLine($"Average Processing Time - Avg of {NUMBEROFQUESTIONSTOPROCESS} requests  (sec): {durationResults.Average()}");
                 Console.WriteLine($"Total   Processing Time - Time to process in parallel (logic & retries) (sec): {totalDurationWithRetries}");
+                Console.WriteLine($"Total   Number of HttpClient Retries: {SharedResources.NumberOfHttpRetries.Count()}");
                 Console.WriteLine();
             }
         }

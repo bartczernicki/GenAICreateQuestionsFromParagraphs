@@ -34,7 +34,8 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
                     },
                 onRetryAsync: (response, timespan, retryCount, context) =>
                     {
-                        Console.WriteLine($"Retrying: {retryCount}");
+                        SharedResources.NumberOfHttpRetries.Add(1);
+                        ConsolePrintHelper.PrintMessage($"Retry Number: {retryCount} with wait time (ms): {timespan.Milliseconds}", type: "retry");
                         return Task.CompletedTask;
                     }
                 );
