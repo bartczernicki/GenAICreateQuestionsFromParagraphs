@@ -188,7 +188,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 Parallel.ForEach(dbPediaSampleQuestionsQueue, dbPediaQuestion =>
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
+                    Console.WriteLine($"Generating ANSWER for ID: {dbPediaQuestion.Id} - {dbPediaQuestion.SampleQuestion}");
 
                     var kernelFunction = createQuestionPlugin["AnswerQuestion"];
 
@@ -212,7 +212,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     };
 
                     var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
-                    Console.WriteLine($"ANSWER: {generatedQuestionString}");
+                    Console.WriteLine($"ANSWER for ID: {dbPediaQuestion.Id} - {generatedQuestionString}");
                     Console.WriteLine();
                 });
                 var currentTimeAfterRun = DateTime.UtcNow;
