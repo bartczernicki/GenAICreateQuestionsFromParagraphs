@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Serilog;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 
@@ -171,9 +172,12 @@ namespace GenAICreateQuestionsFromParagraphs
             else if(
                 (selectedProcessingChoice == ProcessingOptions.AnswerQuestions) || (selectedProcessingChoice == ProcessingOptions.AnswerQuestionsAtScale))
             {
-                var dbPediaQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
-                dbPediaQuestions = dbPediaQuestions.Take(NUMBEROFQUESTIONSTOPROCESS).ToList();
-                var durationResults = new List<double>(dbPediaQuestions.Count);
+                // Load the DBPedia Questions from thedbPediasSampleQuestions.json file
+                var dbPediaSampleQuestions = LoadDbPediaQuestions(Path.Combine(DBPEDIASQUESTIONSDIRECTORY, "dbPediasSampleQuestions.json"));
+                dbPediaSampleQuestions = dbPediaSampleQuestions.Take(NUMBEROFQUESTIONSTOPROCESS).ToList();
+                // Populate a ConcurrentQueue (for later flexibility)
+                var dbPediaSampleQuestionsQueue = new ConcurrentQueue<DbPediaSampleQuestion>(dbPediaSampleQuestions);
+                var durationResults = new List<double>(dbPediaSampleQuestionsQueue.Count);
 
                 var pluginsDirectory = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "SemanticKernelPlugins", "QuestionPlugin");
                 var createQuestionPlugin = semanticKernel.CreatePluginFromPromptDirectory(pluginsDirectory);
@@ -181,7 +185,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 // Do this in parallel to saturate the Azure OpenAI Endpoint
                 object sync = new object();
                 var currentTime = DateTime.UtcNow;
-                Parallel.ForEach(dbPediaQuestions, dbPediaQuestion =>
+                Parallel.ForEach(dbPediaSampleQuestionsQueue, dbPediaQuestion =>
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine($"Generating ANSWER for {dbPediaQuestion.SampleQuestion}");
