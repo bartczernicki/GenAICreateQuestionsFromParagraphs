@@ -7,6 +7,11 @@ using Serilog;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using Azure.Monitor.OpenTelemetry.Exporter;
+using System.Diagnostics;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -14,6 +19,9 @@ namespace GenAICreateQuestionsFromParagraphs
     {
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
         private const int NUMBEROFQUESTIONSTOPROCESS = 100;
+
+        private const LogLevel MinLogLevel = LogLevel.Information;
+        private static readonly ActivitySource s_activitySource = new("Telemetry.Example");
 
         static async Task Main(string[] args)
         {
@@ -37,12 +45,46 @@ namespace GenAICreateQuestionsFromParagraphs
             ProcessingOptions selectedProcessingChoice = (ProcessingOptions)0;
             bool validInput = false;
 
-            // Use Seri Log for logging and Sinks (files)
-            var seriLoggerSemanticKernel = new LoggerConfiguration()
-                .Enrich.WithThreadId()
-                .MinimumLevel.Verbose()
-                .WriteTo.File("SeriLog-SemanticKernel.log")
-                .CreateLogger();
+            // Set up SK
+            ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+            IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
+
+            // Retrieve the keys
+            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
+            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
+            var modelDeploymentName = configuration.GetSection("AzureOpenAI")["ModelDeploymentName"];
+            var azureOpenAIType = configuration.GetSection("AzureOpenAI")["AzureOpenAIType"];
+            var appInsightsConnectionString = configuration.GetSection("ApplicationInsights")["ConnectionString"];
+
+            using var traceProvider = Sdk.CreateTracerProviderBuilder()
+                .AddSource("Microsoft.SemanticKernel*")
+                .AddSource("Telemetry.Example")
+                .AddAzureMonitorTraceExporter(options => options.ConnectionString = appInsightsConnectionString)
+                .Build();
+
+            using var meterProvider = Sdk.CreateMeterProviderBuilder()
+                .AddMeter("Microsoft.SemanticKernel*")
+                .AddAzureMonitorMetricExporter(options => options.ConnectionString = appInsightsConnectionString)
+                .Build();
+
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                // Add OpenTelemetry as a logging provider
+                builder.AddOpenTelemetry(options =>
+                {
+                    options.AddAzureMonitorLogExporter(options => options.ConnectionString = appInsightsConnectionString);
+                    // Format log messages. This is default to false.
+                    options.IncludeFormattedMessage = true;
+                });
+                builder.SetMinimumLevel(MinLogLevel);
+            });
+
+            //// Use Seri Log for logging and Sinks (files)
+            //var seriLoggerSemanticKernel = new LoggerConfiguration()
+            //    .Enrich.WithThreadId()
+            //    .MinimumLevel.Verbose()
+            //    .WriteTo.File("SeriLog-SemanticKernel.log")
+            //    .CreateLogger();
 
             var seriLoggerSemanticKernelHttpClient = new LoggerConfiguration()
                 .Enrich.WithThreadId()
@@ -99,24 +141,16 @@ namespace GenAICreateQuestionsFromParagraphs
             builder.ConfigureLogging(cfg => cfg.ClearProviders().AddSerilog(seriLoggerSemanticKernelHttpClient));
             var host = builder.Build();
 
-            // Set up SK
-            ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-            IConfiguration configuration = configurationBuilder.AddUserSecrets<Program>().Build();
-
-            // Retrieve the keys
-            var azureOpenAIAPIKey = configuration.GetSection("AzureOpenAI")["APIKey"];
-            var azureOpenAIEndpoint = configuration.GetSection("AzureOpenAI")["Endpoint"];
-            var modelDeploymentName = configuration.GetSection("AzureOpenAI")["ModelDeploymentName"];
-            var azureOpenAIType = configuration.GetSection("AzureOpenAI")["AzureOpenAIType"];
-
             // Semantic Kernel Builder
             var semanticKernelBuilder = Kernel.CreateBuilder();
-
+            // App Insights
+            semanticKernelBuilder.Services.AddSingleton<ILoggerFactory>(loggerFactory);
+      
             // Logging will be written to the debug output window
-            semanticKernelBuilder.Services.AddLogging(configure => configure
-                .SetMinimumLevel(LogLevel.Trace)
-                .AddSerilog(seriLoggerSemanticKernel)
-               );
+            //semanticKernelBuilder.Services.AddLogging(configure => configure
+            //    .SetMinimumLevel(LogLevel.Trace)
+            //    .AddSerilog(seriLoggerSemanticKernel)
+            //   );
             
             // Add custom HttpClient with Retry Policy (dynamically added based on selected processing)
             var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
@@ -202,18 +236,21 @@ namespace GenAICreateQuestionsFromParagraphs
 
                     var kernelArguments = new KernelArguments(promptsDictionary!);
 
-                    var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
-
-                    lock (sync)
+                    using (var activity = s_activitySource.StartActivity("AnswerQuestion"))
                     {
-                        var dateTimeOffSet = (DateTimeOffset) generatedQuestion!.Metadata["Created"];
-                        // retrieve the Semantic Kernel function duration
-                        var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
-                        durationResults.Add(diff);
-                    };
+                        var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
 
-                    var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
-                    ConsolePrintHelper.PrintMessage($"ANSWER for ID: {dbPediaQuestion.Id} - {generatedQuestionString}", "answer");
+                        lock (sync)
+                        {
+                            var dateTimeOffSet = (DateTimeOffset)generatedQuestion!.Metadata["Created"];
+                            // retrieve the Semantic Kernel function duration
+                            var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
+                            durationResults.Add(diff);
+                        };
+
+                        var generatedQuestionString = generatedQuestion.GetValue<string>() ?? string.Empty;
+                        ConsolePrintHelper.PrintMessage($"ANSWER for ID: {dbPediaQuestion.Id} - {generatedQuestionString}", "answer");
+                    }
                 });
                 var currentTimeAfterRun = DateTime.UtcNow;
                 var totalDurationWithRetries = (currentTimeAfterRun - currentTime).TotalSeconds;
