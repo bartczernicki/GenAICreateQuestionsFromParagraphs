@@ -19,6 +19,13 @@ namespace GenAICreateQuestionsFromParagraphs
 {
     internal class Program
     {
+
+        /*
+        Examples provided: https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples/TelemetryExample
+        Http Instrumentation: https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.Http/README.md
+        Activity Docs .NET: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs 
+         */
+
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
         private const int NUMBEROFQUESTIONSTOPROCESS = 100;
 
@@ -155,16 +162,16 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Semantic Kernel Builder
             var semanticKernelBuilder = Kernel.CreateBuilder();
-            // App Insights
+            // Semantic Kernel Builder - Add Logging Factory -> App Insights
             semanticKernelBuilder.Services.AddSingleton<ILoggerFactory>(loggerFactory);
-      
+
             // Logging will be written to the debug output window
             //semanticKernelBuilder.Services.AddLogging(configure => configure
             //    .SetMinimumLevel(LogLevel.Trace)
             //    .AddSerilog(seriLoggerSemanticKernel)
             //   );
-            
-            // Add custom HttpClient with Retry Policy (dynamically added based on selected processing)
+
+            // Semantic Kernel Builder - Add custom HttpClient with Retry Policy (dynamically added based on selected processing)
             var httpClientForSemanticKernel = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("DefaultSemanticKernelService");
 
             semanticKernelBuilder.AddAzureOpenAIChatCompletion(
