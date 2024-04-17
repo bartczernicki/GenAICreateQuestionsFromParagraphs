@@ -12,6 +12,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using System.Diagnostics;
+using OpenTelemetry.Instrumentation.Http;
+using Microsoft.Extensions.Azure;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -20,7 +22,7 @@ namespace GenAICreateQuestionsFromParagraphs
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
         private const int NUMBEROFQUESTIONSTOPROCESS = 100;
 
-        private const LogLevel MinLogLevel = LogLevel.Information;
+        private const LogLevel MinLogLevel = LogLevel.Trace;
         private static readonly ActivitySource s_activitySource = new("Telemetry.Example");
 
         static async Task Main(string[] args)
@@ -57,12 +59,14 @@ namespace GenAICreateQuestionsFromParagraphs
             var appInsightsConnectionString = configuration.GetSection("ApplicationInsights")["ConnectionString"];
 
             using var traceProvider = Sdk.CreateTracerProviderBuilder()
+                .AddHttpClientInstrumentation()
                 .AddSource("Microsoft.SemanticKernel*")
                 .AddSource("Telemetry.Example")
                 .AddAzureMonitorTraceExporter(options => options.ConnectionString = appInsightsConnectionString)
                 .Build();
 
             using var meterProvider = Sdk.CreateMeterProviderBuilder()
+                .AddHttpClientInstrumentation()
                 .AddMeter("Microsoft.SemanticKernel*")
                 .AddAzureMonitorMetricExporter(options => options.ConnectionString = appInsightsConnectionString)
                 .Build();
@@ -75,6 +79,7 @@ namespace GenAICreateQuestionsFromParagraphs
                     options.AddAzureMonitorLogExporter(options => options.ConnectionString = appInsightsConnectionString);
                     // Format log messages. This is default to false.
                     options.IncludeFormattedMessage = true;
+                    options.IncludeScopes = true;
                 });
                 builder.SetMinimumLevel(MinLogLevel);
             });
@@ -86,12 +91,12 @@ namespace GenAICreateQuestionsFromParagraphs
             //    .WriteTo.File("SeriLog-SemanticKernel.log")
             //    .CreateLogger();
 
-            var seriLoggerSemanticKernelHttpClient = new LoggerConfiguration()
-                .Enrich.WithThreadId()
-                .MinimumLevel.Verbose()
-                // Can be tuned: https://stackoverflow.com/questions/70609720/reducing-httpclient-log-verbosity
-                .WriteTo.File("SeriLog-SemanticKernelHttpClient.log")
-                .CreateLogger();
+            //var seriLoggerSemanticKernelHttpClient = new LoggerConfiguration()
+            //    .Enrich.WithThreadId()
+            //    .MinimumLevel.Verbose()
+            //    // Can be tuned: https://stackoverflow.com/questions/70609720/reducing-httpclient-log-verbosity
+            //    .WriteTo.File("SeriLog-SemanticKernelHttpClient.log")
+            //    .CreateLogger();
 
 
             // Iterate until the proper input is selected by the user
@@ -124,11 +129,8 @@ namespace GenAICreateQuestionsFromParagraphs
             builder
                 .ConfigureServices((hostContext, services) =>
                 {
-                    // Add AddHttpClient we register the IHttpClientFactory
-                    //services.AddHttpClient();
-
-                    // Retrieve Polly retry policy and apply it to all the services making web requests
-                    var retryPolicy = Policies.HttpPolicies.GetRetryPolicy();
+                // Retrieve Polly retry policy and apply it to all the services making web requests
+                var retryPolicy = Policies.HttpPolicies.GetRetryPolicy();
 
                     // Apply the Polly policy to both the OpenAI and the Project Gutenberg services
                     services.AddHttpClient("DefaultSemanticKernelService", configureClient =>
@@ -137,8 +139,15 @@ namespace GenAICreateQuestionsFromParagraphs
                     }
                     )
                     .AddPolicyHandler(retryPolicy);
+
+                    services.AddScoped<ILoggerFactory>(_ => loggerFactory);
                 });
-            builder.ConfigureLogging(cfg => cfg.ClearProviders().AddSerilog(seriLoggerSemanticKernelHttpClient));
+            builder.ConfigureLogging(cfg => cfg.ClearProviders()
+            // add OpenTelemetry logging provider
+            .AddOpenTelemetry(options => options.IncludeFormattedMessage = true)
+            );
+               // .AddSerilog(seriLoggerSemanticKernelHttpClient));
+
             var host = builder.Build();
 
             // Semantic Kernel Builder
@@ -261,6 +270,7 @@ namespace GenAICreateQuestionsFromParagraphs
                 {
                     sb.AppendLine(duration.ToString());
                 }
+
                 File.WriteAllText($"sampleDurationResults-{NUMBEROFQUESTIONSTOPROCESS}-{azureOpenAIType}-{modelDeploymentName}.txt", sb.ToString());
 
                 Console.ForegroundColor = ConsoleColor.Green;
