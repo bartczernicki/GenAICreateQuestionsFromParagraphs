@@ -23,7 +23,7 @@ namespace GenAICreateQuestionsFromParagraphs
         private const int NUMBEROFQUESTIONSTOPROCESS = 100;
 
         private const LogLevel MinLogLevel = LogLevel.Trace;
-        private static readonly ActivitySource s_activitySource = new("Telemetry.Example");
+        private static readonly ActivitySource s_activitySource = new("Custom.Telemetry");
 
         static async Task Main(string[] args)
         {
@@ -58,19 +58,22 @@ namespace GenAICreateQuestionsFromParagraphs
             var azureOpenAIType = configuration.GetSection("AzureOpenAI")["AzureOpenAIType"];
             var appInsightsConnectionString = configuration.GetSection("ApplicationInsights")["ConnectionString"];
 
+            // OpenTelemetry: Traces to provide request lifecycle information
             using var traceProvider = Sdk.CreateTracerProviderBuilder()
                 .AddHttpClientInstrumentation()
                 .AddSource("Microsoft.SemanticKernel*")
-                .AddSource("Telemetry.Example")
+                .AddSource("Custom.Telemetry")
                 .AddAzureMonitorTraceExporter(options => options.ConnectionString = appInsightsConnectionString)
                 .Build();
 
+            // OpenTelemetry: Meters to provide aggregate metrics (statistics)
             using var meterProvider = Sdk.CreateMeterProviderBuilder()
                 .AddHttpClientInstrumentation()
                 .AddMeter("Microsoft.SemanticKernel*")
                 .AddAzureMonitorMetricExporter(options => options.ConnectionString = appInsightsConnectionString)
                 .Build();
 
+            // OpenTelemetry: Logging to provide log information
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
                 // Add OpenTelemetry as a logging provider
