@@ -19,11 +19,12 @@ namespace GenAICreateQuestionsFromParagraphs
 {
     internal class Program
     {
-
         /*
         Examples provided: https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples/TelemetryExample
         Http Instrumentation: https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.Http/README.md
         Activity Docs .NET: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs 
+        SK Raw Prompt: https://github.com/microsoft/semantic-kernel/discussions/1239 
+        Going forward (Semantic Conventions): https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai 
          */
 
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
@@ -255,7 +256,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
                     var kernelArguments = new KernelArguments(promptsDictionary!);
 
-                    using (var activity = s_activitySource.StartActivity("AnswerQuestion"))
+                    using (var activity = s_activitySource.StartActivity($"AnswerRAGQuestion - ModelDeployment: {modelDeploymentName}"))
                     {
                         var generatedQuestion = semanticKernel.InvokeAsync(kernelFunction, kernelArguments).Result;
 
