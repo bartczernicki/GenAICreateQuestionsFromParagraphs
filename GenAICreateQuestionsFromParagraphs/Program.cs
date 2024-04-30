@@ -25,7 +25,9 @@ namespace GenAICreateQuestionsFromParagraphs
         Activity Docs .NET: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs 
         SK Raw Prompt: https://github.com/microsoft/semantic-kernel/discussions/1239 
         Going forward (Semantic Conventions): https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai 
-         */
+        TimoutAsync: https://learn.microsoft.com/en-us/answers/questions/1419955/how-to-implement-polly-retry-and-fallback
+        Logger (context) to Policies: https://www.stevejgordon.co.uk/passing-an-ilogger-to-polly-policies 
+        */
 
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
         private const int NUMBEROFQUESTIONSTOPROCESS = 100;
