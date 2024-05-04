@@ -26,16 +26,17 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
             //);
             // https://github.com/App-vNext/Polly/issues/414
             .WaitAndRetryAsync(
-                10, // retry 10x
+                10, // retry 10x (change as necessary)
                 sleepDurationProvider: (retryCount, response, context) => 
                     {
+                        var retryCalculationTimeSpan = response!.Result!.Headers!.RetryAfter!.Delta!.Value * 1.05;
                         // retry after Http Response header value (plus 5%)
-                        return response!.Result!.Headers!.RetryAfter!.Delta!.Value * 1.05;
+                        return retryCalculationTimeSpan;
                     },
                 onRetryAsync: (response, timespan, retryCount, context) =>
                     {
                         SharedResources.NumberOfHttpRetries.Add(1);
-                        ConsolePrintHelper.PrintMessage($"Retry Number: {retryCount} with wait time (ms): {timespan.Milliseconds}", type: "retry");
+                        ConsolePrintHelper.PrintMessage($"Retry Number: {retryCount} with wait time (ms): {timespan.TotalMilliseconds}", type: "retry");
                         return Task.CompletedTask;
                     }
                 );
