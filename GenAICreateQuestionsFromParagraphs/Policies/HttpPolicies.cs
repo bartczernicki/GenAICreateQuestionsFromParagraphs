@@ -35,8 +35,10 @@ namespace GenAICreateQuestionsFromParagraphs.Policies
                     },
                 onRetryAsync: (response, timespan, retryCount, context) =>
                     {
+                        // extract x-ms-client-request-id from response
+                        var requestId = response.Result.Headers.GetValues("x-ms-client-request-id").FirstOrDefault();
                         SharedResources.NumberOfHttpRetries.Add(1);
-                        ConsolePrintHelper.PrintMessage($"Retry Number: {retryCount} with wait time (ms): {timespan.TotalMilliseconds}", type: "retry");
+                        ConsolePrintHelper.PrintMessage($"Request ID: {requestId} - Retry Number: {retryCount} with wait time (ms): {timespan.TotalMilliseconds}", type: "retry");
                         return Task.CompletedTask;
                     }
                 );
