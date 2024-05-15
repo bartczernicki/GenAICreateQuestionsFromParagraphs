@@ -165,6 +165,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
             // Semantic Kernel Builder
             var semanticKernelBuilder = Kernel.CreateBuilder();
+
             // Semantic Kernel Builder - Add Logging Factory -> App Insights
             semanticKernelBuilder.Services.AddSingleton<ILoggerFactory>(loggerFactory);
 
