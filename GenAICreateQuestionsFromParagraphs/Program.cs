@@ -14,6 +14,8 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using System.Diagnostics;
 using OpenTelemetry.Instrumentation.Http;
 using Microsoft.Extensions.Azure;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -186,7 +188,6 @@ namespace GenAICreateQuestionsFromParagraphs
             );
             var semanticKernel = semanticKernelBuilder.Build();
 
-
             if (selectedProcessingChoice == (ProcessingOptions.CreateQuestions))
             {
                 Console.WriteLine("Load DbPedias");
@@ -207,6 +208,7 @@ namespace GenAICreateQuestionsFromParagraphs
                         { "TITLE", dbPedia.Title },
                         { "PARAGRAPH", dbPedia.Text }
                     };
+
 
                     var kernelArguments = new KernelArguments(promptsDictionary!);
 
