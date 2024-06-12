@@ -16,6 +16,7 @@ using OpenTelemetry.Instrumentation.Http;
 using Microsoft.Extensions.Azure;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Azure.AI.OpenAI;
 
 namespace GenAICreateQuestionsFromParagraphs
 {
@@ -98,6 +99,18 @@ namespace GenAICreateQuestionsFromParagraphs
                 });
                 builder.SetMinimumLevel(MinLogLevel);
             });
+
+            AzureSearchChatExtensionConfiguration config = new() { }; ;
+
+            var extensionsOptions = new AzureChatExtensionsOptions()
+            {
+                Extensions = { config }
+            };
+
+            var testO = new OpenAIPromptExecutionSettings();
+#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+            testO.AzureChatExtensionsOptions = extensionsOptions;
+#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
             //// Use Seri Log for logging and Sinks (files)
             //var seriLoggerSemanticKernel = new LoggerConfiguration()
