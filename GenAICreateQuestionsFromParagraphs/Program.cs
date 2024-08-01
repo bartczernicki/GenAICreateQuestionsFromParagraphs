@@ -280,7 +280,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
                         lock (sync)
                         {
-                            var dateTimeOffSet = (DateTimeOffset)generatedQuestion!.Metadata["Created"];
+                            var dateTimeOffSet = (DateTimeOffset) generatedQuestion!.Metadata!["Created"]!;
                             // retrieve the Semantic Kernel function duration
                             var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
                             durationResults.Add(diff);
@@ -328,7 +328,7 @@ namespace GenAICreateQuestionsFromParagraphs
             {
                 string json = r.ReadToEnd();
                 var dbpedias = JsonSerializer.Deserialize<List<DbPediaSampleQuestion>>(json);
-                return dbpedias;
+                return dbpedias!;
             }
         }
     }
