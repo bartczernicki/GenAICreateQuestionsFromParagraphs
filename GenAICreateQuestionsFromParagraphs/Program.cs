@@ -13,7 +13,6 @@ using OpenTelemetry.Trace;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using System.Diagnostics;
 using OpenTelemetry.Instrumentation.Http;
-using Microsoft.Extensions.Azure;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Azure.AI.OpenAI;
@@ -280,7 +279,7 @@ namespace GenAICreateQuestionsFromParagraphs
 
                         lock (sync)
                         {
-                            var dateTimeOffSet = (DateTimeOffset) generatedQuestion!.Metadata!["Created"]!;
+                            var dateTimeOffSet = (DateTimeOffset) generatedQuestion!.Metadata!["CreatedAt"]!;
                             // retrieve the Semantic Kernel function duration
                             var diff = (DateTime.UtcNow - dateTimeOffSet.UtcDateTime).TotalSeconds;
                             durationResults.Add(diff);
