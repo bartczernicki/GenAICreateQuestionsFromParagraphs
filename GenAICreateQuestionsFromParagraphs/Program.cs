@@ -32,7 +32,7 @@ namespace GenAICreateQuestionsFromParagraphs
         */
 
         private const string DBPEDIASQUESTIONSDIRECTORY = @"DbPediaQuestions";
-        private const int NUMBEROFQUESTIONSTOPROCESS = 175;
+        private const int NUMBEROFQUESTIONSTOPROCESS = 400;
 
         private const LogLevel MinLogLevel = LogLevel.Trace;
         private static readonly ActivitySource s_activitySource = new("Custom.Telemetry");
